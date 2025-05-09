@@ -12,6 +12,8 @@ namespace DevBasics.CarManagement
     public class CarManagementService : BaseService
     {
         private readonly IMapper _mapper;
+        private readonly ICarUpdater carUpdater;
+        private readonly IHistoryInserter historyInserter;
 
         public CarManagementService(
             IMapper mapper,
@@ -21,7 +23,8 @@ namespace DevBasics.CarManagement
             ITransactionStateService transactionStateService,
             IBulkRegistrationService bulkRegisterService,
             IRegistrationDetailService registrationDetailService,
-            ILeasingRegistrationRepository registrationRepository,
+            ICarUpdater carUpdater,
+            IHistoryInserter historyInserter,
             ICarRegistrationRepository carRegistrationRepository)
                 : base(settings, httpHeader, apiClient,
                       transactionStateService: transactionStateService,
@@ -33,6 +36,8 @@ namespace DevBasics.CarManagement
             Console.WriteLine($"Initializing service {nameof(CarManagementService)}");
 
             _mapper = mapper;
+            this.carUpdater = carUpdater;
+            this.historyInserter = historyInserter;
         }
 
         public async Task<ServiceResult> RegisterCarsAsync(RegisterCarsModel registerCarsModel, bool isForcedRegistration, Claims claims, string identity = "Unknown")
