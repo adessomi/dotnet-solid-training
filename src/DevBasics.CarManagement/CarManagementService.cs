@@ -15,7 +15,7 @@ namespace DevBasics.CarManagement
 
         public CarManagementService(
             IMapper mapper,
-            CarManagementSettings settings,
+            LanguageSettings settings,
             HttpHeaderSettings httpHeader,
             IKowoLeasingApiClient apiClient,
             ITransactionStateService transactionStateService,

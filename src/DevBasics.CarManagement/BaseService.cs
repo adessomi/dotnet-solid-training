@@ -7,7 +7,7 @@ namespace DevBasics.CarManagement
 {
     public class BaseService
     {
-        public CarManagementSettings Settings { get; set; }
+        public LanguageSettings Settings { get; set; }
 
         public HttpHeaderSettings HttpHeader { get; set; }
 
@@ -24,7 +24,7 @@ namespace DevBasics.CarManagement
         public ICarRegistrationRepository CarLeasingRepository { get; set; }
 
         public BaseService(
-            CarManagementSettings settings,
+            LanguageSettings settings,
             HttpHeaderSettings httpHeader,
             IKowoLeasingApiClient apiClient,
             IBulkRegistrationService bulkRegistrationService = null,
