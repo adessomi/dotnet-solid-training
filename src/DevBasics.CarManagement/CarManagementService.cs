@@ -82,7 +82,7 @@ namespace DevBasics.CarManagement
                 }
 
                 CarPoolNumberHelper.Generate(
-                    CarBrand.Toyota,
+                    new ToyotaCarRegistrationNumberGenerator(), //TODO: use a factory based on CarBrand which will be injected as dependency
                     registerCarsModel.Cars.FirstOrDefault().CarPool,
                     out string registrationId,
                     out string carPoolNumber);
