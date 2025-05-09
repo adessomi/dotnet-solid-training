@@ -18,20 +18,19 @@ namespace DevBasics.CarManagement
         public ITransactionStateService TransactionStateService { get; set; }
 
         public IRegistrationDetailService RegistrationDetailService { get; set; }
+        public IAppSettingsReader AppSettingsReader { get; }
 
-        public ILeasingRegistrationRepository LeasingRegistrationRepository { get; set; }
-
-        public ICarRegistrationRepository CarLeasingRepository { get; set; }
+        public ICarRegistrationRepository CarRegistrationRepository { get; set; }
 
         public BaseService(
             LanguageSettings settings,
             HttpHeaderSettings httpHeader,
+            IAppSettingsReader appSettingsReader,
             IKowoLeasingApiClient apiClient,
             IBulkRegistrationService bulkRegistrationService = null,
             ITransactionStateService transactionStateService = null,
             IRegistrationDetailService registrationDetailService = null,
-            ILeasingRegistrationRepository leasingRegistrationRepository = null,
-            ICarRegistrationRepository carLeasingRepository = null)
+            ICarRegistrationRepository carRegistrationRepository = null)
         {
             // Mandatory
             Settings = settings;
@@ -42,10 +41,10 @@ namespace DevBasics.CarManagement
             BulkRegistrationService = bulkRegistrationService;
             TransactionStateService = transactionStateService;
             RegistrationDetailService = registrationDetailService;
+            AppSettingsReader = appSettingsReader;
 
             // Optional Repositories
-            LeasingRegistrationRepository = leasingRegistrationRepository;
-            CarLeasingRepository = carLeasingRepository;
+            CarRegistrationRepository = carRegistrationRepository;
         }
 
         public async Task<RequestContext> InitializeRequestContextAsync()
@@ -54,7 +53,7 @@ namespace DevBasics.CarManagement
 
             try
             {
-                AppSettingDto settingResult = await LeasingRegistrationRepository.GetAppSettingAsync(HttpHeader.SalesOrgIdentifier, HttpHeader.WebAppType);
+                AppSettingDto settingResult = await AppSettingsReader.GetAppSettingAsync(HttpHeader.SalesOrgIdentifier, HttpHeader.WebAppType);
 
                 if (settingResult == null)
                 {

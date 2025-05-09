@@ -1,24 +1,28 @@
-﻿using DevBasics.CarManagement.Dependencies;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Threading.Tasks;
+using DevBasics.CarManagement.Dependencies;
 
 namespace DevBasics.CarManagement
 {
     internal class CarUpdater : ICarUpdater
     {
-        public IDictionary<int, Tuple<CarRegistrationDto, string, string, string>> Registrations { get; } = new Dictionary<int, Tuple<CarRegistrationDto, string, string, string>>();
+        private readonly ILeasingRegistrationRepository _leasingRegistrationRepository;
+
+        public CarUpdater(ILeasingRegistrationRepository leasingRegistrationRepository)
+        {
+            _leasingRegistrationRepository = leasingRegistrationRepository;
+        }
 
         public Task<bool> UpdateCarAsync(CarRegistrationDto dbCar)
         {
-            if (!Registrations.ContainsKey(dbCar.RegisteredCarId))
+            if (!_leasingRegistrationRepository.Registrations.ContainsKey(dbCar.RegisteredCarId))
             {
                 return Task.FromResult(false);
             }
 
-            var current = Registrations[dbCar.RegisteredCarId];
+            var current = _leasingRegistrationRepository.Registrations[dbCar.RegisteredCarId];
 
-            Registrations[dbCar.RegisteredCarId] = Tuple.Create(dbCar, current.Item2, current.Item3, current.Item4);
+            _leasingRegistrationRepository.Registrations[dbCar.RegisteredCarId] = Tuple.Create(dbCar, current.Item2, current.Item3, current.Item4);
 
             return Task.FromResult(true);
         }

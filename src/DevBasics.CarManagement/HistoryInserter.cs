@@ -1,19 +1,23 @@
-﻿using DevBasics.CarManagement.Dependencies;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using System;
+using DevBasics.CarManagement.Dependencies;
 
 namespace DevBasics.CarManagement
 {
     internal class HistoryInserter : IHistoryInserter
     {
-        public IDictionary<int, Tuple<CarRegistrationDto, string, string, string>> Registrations { get; } = new Dictionary<int, Tuple<CarRegistrationDto, string, string, string>>();
+        private readonly ILeasingRegistrationRepository _leasingRegistrationRepository;
+
+        public HistoryInserter(ILeasingRegistrationRepository leasingRegistrationRepository)
+        {
+            _leasingRegistrationRepository = leasingRegistrationRepository;
+        }
 
         public Task<int> InsertHistoryAsync(CarRegistrationDto dbCar, string userName, string transactionStateName = null, string transactionTypeName = null)
         {
-            if (!Registrations.ContainsKey(dbCar.RegisteredCarId))
+            if (!_leasingRegistrationRepository.Registrations.ContainsKey(dbCar.RegisteredCarId))
             {
-                Registrations.Add(dbCar.RegisteredCarId, Tuple.Create(dbCar, userName, transactionStateName, transactionTypeName));
+                _leasingRegistrationRepository.Registrations.Add(dbCar.RegisteredCarId, Tuple.Create(dbCar, userName, transactionStateName, transactionTypeName));
 
                 return Task.FromResult(1);
             }
