@@ -7,45 +7,20 @@ namespace DevBasics.CarManagement
 {
     public class BaseService
     {
-        public CarManagementSettings Settings { get; set; }
+        public LanguageSettings Settings { get; set; }
 
         public HttpHeaderSettings HttpHeader { get; set; }
 
-        public IKowoLeasingApiClient ApiClient { get; set; }
-
-        public IBulkRegistrationService BulkRegistrationService { get; set; }
-
-        public ITransactionStateService TransactionStateService { get; set; }
-
-        public IRegistrationDetailService RegistrationDetailService { get; set; }
-
-        public ILeasingRegistrationRepository LeasingRegistrationRepository { get; set; }
-
-        public ICarRegistrationRepository CarLeasingRepository { get; set; }
+        public IAppSettingsReader AppSettingsReader { get; }
 
         public BaseService(
-            CarManagementSettings settings,
+            LanguageSettings settings,
             HttpHeaderSettings httpHeader,
-            IKowoLeasingApiClient apiClient,
-            IBulkRegistrationService bulkRegistrationService = null,
-            ITransactionStateService transactionStateService = null,
-            IRegistrationDetailService registrationDetailService = null,
-            ILeasingRegistrationRepository leasingRegistrationRepository = null,
-            ICarRegistrationRepository carLeasingRepository = null)
+            IAppSettingsReader appSettingsReader)
         {
-            // Mandatory
             Settings = settings;
             HttpHeader = httpHeader;
-            ApiClient = apiClient;
-
-            // Optional Services
-            BulkRegistrationService = bulkRegistrationService;
-            TransactionStateService = transactionStateService;
-            RegistrationDetailService = registrationDetailService;
-
-            // Optional Repositories
-            LeasingRegistrationRepository = leasingRegistrationRepository;
-            CarLeasingRepository = carLeasingRepository;
+            AppSettingsReader = appSettingsReader;
         }
 
         public async Task<RequestContext> InitializeRequestContextAsync()
@@ -54,7 +29,7 @@ namespace DevBasics.CarManagement
 
             try
             {
-                AppSettingDto settingResult = await LeasingRegistrationRepository.GetAppSettingAsync(HttpHeader.SalesOrgIdentifier, HttpHeader.WebAppType);
+                AppSettingDto settingResult = await AppSettingsReader.GetAppSettingAsync(HttpHeader.SalesOrgIdentifier, HttpHeader.WebAppType);
 
                 if (settingResult == null)
                 {

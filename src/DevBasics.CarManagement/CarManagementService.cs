@@ -9,30 +9,35 @@ using static DevBasics.CarManagement.Dependencies.RegistrationApiResponseBase;
 
 namespace DevBasics.CarManagement
 {
-    public class CarManagementService : BaseService
+    public class CarManagementService : BaseService, ICarManagementService
     {
         private readonly IMapper _mapper;
+        private readonly ILeasingRegistrationRepository _leasingRegistrationRepository;
+        private readonly ICarUpdater _carUpdater;
+        private readonly IHistoryInserter _historyInserter;
+        private readonly IBulkRegistrationService _bulkRegistrationService;
+        private readonly ICarRegistrationRepository _carRegistrationRepository;
 
         public CarManagementService(
             IMapper mapper,
-            CarManagementSettings settings,
+            LanguageSettings settings,
             HttpHeaderSettings httpHeader,
-            IKowoLeasingApiClient apiClient,
-            ITransactionStateService transactionStateService,
-            IBulkRegistrationService bulkRegisterService,
-            IRegistrationDetailService registrationDetailService,
-            ILeasingRegistrationRepository registrationRepository,
+            IBulkRegistrationService bulkRegistrationService,
+            ILeasingRegistrationRepository leasingRegistrationRepository,
+            IAppSettingsReader appSettingsReader,
+            ICarUpdater carUpdater,
+            IHistoryInserter historyInserter,
             ICarRegistrationRepository carRegistrationRepository)
-                : base(settings, httpHeader, apiClient,
-                      transactionStateService: transactionStateService,
-                      bulkRegistrationService: bulkRegisterService,
-                      registrationDetailService: registrationDetailService,
-                      leasingRegistrationRepository: registrationRepository,
-                      carLeasingRepository: carRegistrationRepository)
+                : base(settings, httpHeader, appSettingsReader)
         {
             Console.WriteLine($"Initializing service {nameof(CarManagementService)}");
 
             _mapper = mapper;
+            _leasingRegistrationRepository = leasingRegistrationRepository;
+            _carUpdater = carUpdater;
+            _historyInserter = historyInserter;
+            _bulkRegistrationService = bulkRegistrationService;
+            _carRegistrationRepository = carRegistrationRepository;
         }
 
         public async Task<ServiceResult> RegisterCarsAsync(RegisterCarsModel registerCarsModel, bool isForcedRegistration, Claims claims, string identity = "Unknown")
@@ -72,12 +77,8 @@ namespace DevBasics.CarManagement
                         registerCarsModel.Cars = notExistingItems;
                     }
                 }
-
-                CarPoolNumberHelper.Generate(
-                    CarBrand.Toyota,
-                    registerCarsModel.Cars.FirstOrDefault().CarPool,
-                    out string registrationId,
-                    out string carPoolNumber);
+                //TODO: use a factory based on CarBrand which will be injected as dependency
+                new ToyotaCarPoolNumberGenerator().GenerateNumber(registerCarsModel.Cars.FirstOrDefault().CarPool, out string registrationId, out string carPoolNumber);
 
                 Console.WriteLine($"Created unique car pool number {carPoolNumber} and registration id {registrationId}");
 
@@ -160,7 +161,7 @@ namespace DevBasics.CarManagement
                         try
                         {
                             requestPayload = await MapToModel(RegistrationType.Register, registerCarsModel, transactionId);
-                            apiTransactionResult = await BulkRegistrationService.ExecuteRegistrationAsync(requestPayload);
+                            apiTransactionResult = await _bulkRegistrationService.ExecuteRegistrationAsync(requestPayload);
                         }
                         catch (Exception ex)
                         {
@@ -189,7 +190,7 @@ namespace DevBasics.CarManagement
                         IEnumerable<IGrouping<string, CarRegistrationModel>> group = registerCarsModel.Cars.GroupBy(x => x.RegistrationId);
                         foreach (IGrouping<string, CarRegistrationModel> grp in group)
                         {
-                            IList<CarRegistrationModel> dbApiCars = await CarLeasingRepository.GetApiRegisteredCarsAsync(grp.Key);
+                            IList<CarRegistrationModel> dbApiCars = await _carRegistrationRepository.GetApiRegisteredCarsAsync(grp.Key);
                             foreach (CarRegistrationModel dbApiCar in dbApiCars)
                             {
                                 CarRegistrationDto dbCar = new CarRegistrationDto
@@ -198,7 +199,7 @@ namespace DevBasics.CarManagement
                                 };
 
                                 dbCar.TransactionState = (int?)TransactionResult.MissingData;
-                                await CarLeasingRepository.UpdateRegisteredCarAsync(dbCar, identity);
+                                await _carRegistrationRepository.UpdateRegisteredCarAsync(dbCar, identity);
 
                                 Console.WriteLine($"Updated car {dbApiCar.VehicleIdentificationNumber} to database. " +
                                     $"Car (serialized as JSON): {JsonConvert.SerializeObject(dbApiCar)}");
@@ -224,7 +225,7 @@ namespace DevBasics.CarManagement
 
                     foreach (IGrouping<string, CarRegistrationModel> grp in group)
                     {
-                        IList<CarRegistrationModel> dbApiCars = await CarLeasingRepository.GetApiRegisteredCarsAsync(grp.Key);
+                        IList<CarRegistrationModel> dbApiCars = await _carRegistrationRepository.GetApiRegisteredCarsAsync(grp.Key);
 
                         foreach (CarRegistrationModel dbApiCar in dbApiCars)
                         {
@@ -257,7 +258,7 @@ namespace DevBasics.CarManagement
                                 uiResponseStatusMsg = TransactionResult.MissingData.ToString();
                             }
 
-                            await new CarRegistrationRepository(LeasingRegistrationRepository, BulkRegistrationService, _mapper).UpdateRegisteredCarAsync(dbCar, identity);
+                            await new CarRegistrationRepository(_leasingRegistrationRepository, _carUpdater, _bulkRegistrationService, _mapper).UpdateRegisteredCarAsync(dbCar, identity);
                         }
                     }
 
@@ -429,7 +430,7 @@ namespace DevBasics.CarManagement
 
             try
             {
-                IList<CarRegistrationDto> dbCarsToUpdate = await CarLeasingRepository.GetCarsAsync(cars);
+                IList<CarRegistrationDto> dbCarsToUpdate = await _carRegistrationRepository.GetCarsAsync(cars);
                 foreach (CarRegistrationDto carToUpdate in dbCarsToUpdate)
                 {
                     if (!string.IsNullOrWhiteSpace(transactionId))
@@ -458,8 +459,8 @@ namespace DevBasics.CarManagement
                     Console.WriteLine(
                         $"Trying to update car {carToUpdate.CarIdentificationNumber} in database...");
 
-                    await LeasingRegistrationRepository.UpdateCarAsync(carToUpdate);
-                    await LeasingRegistrationRepository.InsertHistoryAsync(carToUpdate,
+                    await _carUpdater.UpdateCarAsync(carToUpdate);
+                    await _historyInserter.InsertHistoryAsync(carToUpdate,
                         identity,
                         ((carToUpdate.TransactionState.HasValue) ? Enum.GetName(typeof(TransactionResult), (int)carToUpdate.TransactionState) : null),
                         ((carToUpdate.TransactionType.HasValue) ? Enum.GetName(typeof(RegistrationType), (int)carToUpdate.TransactionType) : null)
@@ -491,7 +492,7 @@ namespace DevBasics.CarManagement
             try
             {
                 // Get the cars from database.
-                IList<CarRegistrationDto> dbCars = await CarLeasingRepository.GetCarsAsync(carIdentifier);
+                IList<CarRegistrationDto> dbCars = await _carRegistrationRepository.GetCarsAsync(carIdentifier);
                 foreach (CarRegistrationDto dbCar in dbCars)
                 {
                     Console.WriteLine($"Now processing car {dbCar.RegisteredCarId}...");
@@ -544,7 +545,7 @@ namespace DevBasics.CarManagement
                     Console.WriteLine(
                         $"Trying to update car {dbCar.CarIdentificationNumber} in database...");
 
-                    int result = await CarLeasingRepository.UpdateRegisteredCarAsync(dbCar, identity);
+                    int result = await _carRegistrationRepository.UpdateRegisteredCarAsync(dbCar, identity);
 
                     if (result != -1)
                     {
@@ -694,7 +695,7 @@ namespace DevBasics.CarManagement
         {
             Console.WriteLine($"Trying to analyze if this is the first transaction for car {carIdentificationNumber}...");
 
-            IEnumerable<CarRegistrationLogDto> carHistory = (await CarLeasingRepository.GetCarHistoryAsync(carIdentificationNumber)).Where(x => x.RegistrationId == registrationRegistrationId);
+            IEnumerable<CarRegistrationLogDto> carHistory = (await _carRegistrationRepository.GetCarHistoryAsync(carIdentificationNumber)).Where(x => x.RegistrationId == registrationRegistrationId);
 
             if (carHistory != null)
             {
@@ -725,7 +726,7 @@ namespace DevBasics.CarManagement
                             $"The registration with registration ids {string.Join(", ", forceItems.Select(x => x.RegistrationId))} has already been processed but forceRegisterment is true, " +
                             $"so the registration registration items will be registrationed again.");
 
-                IList<CarRegistrationModel> currentDbCars = await CarLeasingRepository.GetApiRegisteredCarsAsync(forceItems.Select(x => x.VehicleIdentificationNumber).ToList());
+                IList<CarRegistrationModel> currentDbCars = await _carRegistrationRepository.GetApiRegisteredCarsAsync(forceItems.Select(x => x.VehicleIdentificationNumber).ToList());
 
                 foreach (CarRegistrationModel forceRegisterCar in forceItems)
                 {
@@ -735,7 +736,7 @@ namespace DevBasics.CarManagement
 
                     latestHistoryRowCreationDate.Add(
                         currentDbCar.RegisteredCarId,
-                        (await CarLeasingRepository.GetLatestCarHistoryEntryAsync(forceRegisterCar.VehicleIdentificationNumber)).RowCreationDate
+                        (await _carRegistrationRepository.GetLatestCarHistoryEntryAsync(forceRegisterCar.VehicleIdentificationNumber)).RowCreationDate
                      );
 
                     AssignCarValuesForUpdate(currentDbCar, forceRegisterCar, identity, source: "Force Registerment");
@@ -805,7 +806,7 @@ namespace DevBasics.CarManagement
                     foreach (int id in dbCarsToRevert)
                     {
                         // Get all history items of car which should be reverted.
-                        IEnumerable<CarRegistrationLogDto> carHistory = await CarLeasingRepository.GetCarHistoryAsync(id.ToString());
+                        IEnumerable<CarRegistrationLogDto> carHistory = await _carRegistrationRepository.GetCarHistoryAsync(id.ToString());
 
                         DateTime? rowCreationDate = null;
                         if (onlyForceRegistermentItems)
@@ -856,9 +857,9 @@ namespace DevBasics.CarManagement
                 if (rowCreationDate != null)
                 {
 
-                    CarRegistrationModel currentCarData = await CarLeasingRepository.GetApiRegisteredCarAsync(carDatasetId);
+                    CarRegistrationModel currentCarData = await _carRegistrationRepository.GetApiRegisteredCarAsync(carDatasetId);
 
-                    var car = (await CarLeasingRepository.GetCarHistoryAsync(carDatasetId.ToString()))
+                    var car = (await _carRegistrationRepository.GetCarHistoryAsync(carDatasetId.ToString()))
                         .Where(x => x.RowCreationDate == rowCreationDate)
                         .FirstOrDefault();
 
@@ -912,7 +913,7 @@ namespace DevBasics.CarManagement
                     carToUpdate.CarPoolNumber = carUpdateValues.CarPoolNumber;
                 }
 
-                CarLeasingRepository.UpdateErpRegistrationItemAsync(_mapper.Map<ErpRegistermentRegistration>(carToUpdate));
+                _carRegistrationRepository.UpdateErpRegistrationItemAsync(_mapper.Map<ErpRegistermentRegistration>(carToUpdate));
 
                 CarRegistrationDto dbCar = _mapper.Map<CarRegistrationDto>(carToUpdate);
 
@@ -922,7 +923,7 @@ namespace DevBasics.CarManagement
                 dbCar.TransactionType = (int)parsedTransactionType;
                 dbCar.TransactionState = (int)parsedTransactionStatus;
 
-                CarLeasingRepository.UpdateRegisteredCarAsync(dbCar, identity, saveWithHistory);
+                _carRegistrationRepository.UpdateRegisteredCarAsync(dbCar, identity, saveWithHistory);
 
                 Console.WriteLine($"Reverted car data. Car (serialized as JSON): {JsonConvert.SerializeObject(dbCar)}");
             }
