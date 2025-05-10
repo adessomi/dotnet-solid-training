@@ -11,40 +11,16 @@ namespace DevBasics.CarManagement
 
         public HttpHeaderSettings HttpHeader { get; set; }
 
-        public IKowoLeasingApiClient ApiClient { get; set; }
-
-        public IBulkRegistrationService BulkRegistrationService { get; set; }
-
-        public ITransactionStateService TransactionStateService { get; set; }
-
-        public IRegistrationDetailService RegistrationDetailService { get; set; }
         public IAppSettingsReader AppSettingsReader { get; }
-
-        public ICarRegistrationRepository CarRegistrationRepository { get; set; }
 
         public BaseService(
             LanguageSettings settings,
             HttpHeaderSettings httpHeader,
-            IAppSettingsReader appSettingsReader,
-            IKowoLeasingApiClient apiClient,
-            IBulkRegistrationService bulkRegistrationService = null,
-            ITransactionStateService transactionStateService = null,
-            IRegistrationDetailService registrationDetailService = null,
-            ICarRegistrationRepository carRegistrationRepository = null)
+            IAppSettingsReader appSettingsReader)
         {
-            // Mandatory
             Settings = settings;
             HttpHeader = httpHeader;
-            ApiClient = apiClient;
-
-            // Optional Services
-            BulkRegistrationService = bulkRegistrationService;
-            TransactionStateService = transactionStateService;
-            RegistrationDetailService = registrationDetailService;
             AppSettingsReader = appSettingsReader;
-
-            // Optional Repositories
-            CarRegistrationRepository = carRegistrationRepository;
         }
 
         public async Task<RequestContext> InitializeRequestContextAsync()
