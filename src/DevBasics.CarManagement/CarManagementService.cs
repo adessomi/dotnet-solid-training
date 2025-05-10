@@ -9,7 +9,7 @@ using static DevBasics.CarManagement.Dependencies.RegistrationApiResponseBase;
 
 namespace DevBasics.CarManagement
 {
-    public class CarManagementService : BaseService
+    public class CarManagementService : BaseService, ICarManagementService
     {
         private readonly IMapper _mapper;
         private readonly ILeasingRegistrationRepository _leasingRegistrationRepository;

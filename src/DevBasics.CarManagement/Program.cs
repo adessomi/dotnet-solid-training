@@ -1,8 +1,8 @@
-﻿using AutoMapper;
-using DevBasics.CarManagement.Dependencies;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using DevBasics.CarManagement.Dependencies;
 
 namespace DevBasics.CarManagement
 {
@@ -10,33 +10,10 @@ namespace DevBasics.CarManagement
     {
         internal static async Task Main()
         {
-            var model = new CarRegistrationModel();
-            var configuration = new MapperConfiguration(cnfgrtn => model.CreateMappings(cnfgrtn));
-            var mapper = configuration.CreateMapper();
+            var serviceProvider = DependencyProvider.CreateDependencies();
+            var carManagementService = serviceProvider.GetService<ICarManagementService>();
 
-            var bulkRegistrationServiceMock = new BulkRegistrationServiceMock();
-            var leasingRegistrationRepository = new LeasingRegistrationRepository();
-            var carUpdater = new CarUpdater(leasingRegistrationRepository);
-            var historyInserter = new HistoryInserter(leasingRegistrationRepository);
-            var appSettingsReader = new AppSettingsReader();
-            var carRegistrationRepositoryMock = new CarRegistrationRepository(
-                leasingRegistrationRepository,
-                carUpdater,
-                bulkRegistrationServiceMock,
-                mapper);
-
-            var service = new CarManagementService(
-                mapper,
-                new LanguageSettings(),
-                new HttpHeaderSettings(),
-                bulkRegistrationServiceMock,
-                leasingRegistrationRepository,
-                appSettingsReader,
-                carUpdater,
-                historyInserter,
-                carRegistrationRepositoryMock);
-
-            var result = await service.RegisterCarsAsync(
+            var result = await carManagementService.RegisterCarsAsync(
                 new RegisterCarsModel
                 {
                     CompanyId = "Company",
