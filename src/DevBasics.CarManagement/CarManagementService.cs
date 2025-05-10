@@ -9,7 +9,7 @@ using static DevBasics.CarManagement.Dependencies.RegistrationApiResponseBase;
 
 namespace DevBasics.CarManagement
 {
-    public class CarManagementService : BaseService, ICarManagementService
+    public class CarManagementService : ICarManagementService
     {
         private readonly IMapper _mapper;
         private readonly ILeasingRegistrationRepository _leasingRegistrationRepository;
@@ -17,6 +17,7 @@ namespace DevBasics.CarManagement
         private readonly IHistoryInserter _historyInserter;
         private readonly IBulkRegistrationService _bulkRegistrationService;
         private readonly ICarRegistrationRepository _carRegistrationRepository;
+        private readonly IRequestContextInitializer _requestContextInitializer;
 
         public CarManagementService(
             IMapper mapper,
@@ -27,8 +28,8 @@ namespace DevBasics.CarManagement
             IAppSettingsReader appSettingsReader,
             ICarUpdater carUpdater,
             IHistoryInserter historyInserter,
-            ICarRegistrationRepository carRegistrationRepository)
-                : base(settings, httpHeader, appSettingsReader)
+            ICarRegistrationRepository carRegistrationRepository,
+            IRequestContextInitializer requestContextInitializer)
         {
             Console.WriteLine($"Initializing service {nameof(CarManagementService)}");
 
@@ -38,6 +39,7 @@ namespace DevBasics.CarManagement
             _historyInserter = historyInserter;
             _bulkRegistrationService = bulkRegistrationService;
             _carRegistrationRepository = carRegistrationRepository;
+            _requestContextInitializer = requestContextInitializer;
         }
 
         public async Task<ServiceResult> RegisterCarsAsync(RegisterCarsModel registerCarsModel, bool isForcedRegistration, Claims claims, string identity = "Unknown")
@@ -275,7 +277,7 @@ namespace DevBasics.CarManagement
             }
         }
 
-        public bool HasMissingData(CarRegistrationModel car)
+        private bool HasMissingData(CarRegistrationModel car)
         {
             return (string.IsNullOrWhiteSpace(car.CompanyId))
                         || (string.IsNullOrWhiteSpace(car.VehicleIdentificationNumber))
@@ -291,7 +293,7 @@ namespace DevBasics.CarManagement
 
             try
             {
-                requestModel.RequestContext = await base.InitializeRequestContextAsync();
+                requestModel.RequestContext = await _requestContextInitializer.InitializeRequestContextAsync();
 
                 requestModel.TransactionId = transactionId;
                 requestModel.CompanyId = cars.CompanyId;

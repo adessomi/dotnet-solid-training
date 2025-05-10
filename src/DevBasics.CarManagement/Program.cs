@@ -13,25 +13,30 @@ namespace DevBasics.CarManagement
             var serviceProvider = DependencyProvider.CreateDependencies();
             var carManagementService = serviceProvider.GetService<ICarManagementService>();
 
-            var result = await carManagementService.RegisterCarsAsync(
-                new RegisterCarsModel
+            var carRegistrationModels = new List<CarRegistrationModel>
+            {
+                new CarRegistrationModel
                 {
                     CompanyId = "Company",
                     CustomerId = "Customer",
-                    VendorId = "Vendor",
-                    Cars = new List<CarRegistrationModel>
-                    {
-                        new CarRegistrationModel
-                        {
-                            CompanyId = "Company",
-                            CustomerId = "Customer",
-                            VehicleIdentificationNumber = Guid.NewGuid().ToString(),
-                            DeliveryDate = DateTime.Now.AddDays(14).Date,
-                            ErpDeliveryNumber = Guid.NewGuid().ToString()
-                        }
-                    }
-                },
-                false,
+                    VehicleIdentificationNumber = Guid.NewGuid().ToString(),
+                    DeliveryDate = DateTime.Now.AddDays(14).Date,
+                    ErpDeliveryNumber = Guid.NewGuid().ToString()
+                }
+            };
+            var registerCarsModel = new RegisterCarsModel
+            {
+                CompanyId = "Company",
+                CustomerId = "Customer",
+                VendorId = "Vendor",
+                Cars = carRegistrationModels
+            };
+
+            var isForcedRegistration = false;
+
+            await carManagementService.RegisterCarsAsync(
+                registerCarsModel,
+                isForcedRegistration,
                 new Claims());
         }
     }
