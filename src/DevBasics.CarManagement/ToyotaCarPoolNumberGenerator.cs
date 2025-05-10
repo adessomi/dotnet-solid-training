@@ -2,9 +2,9 @@
 
 namespace DevBasics.CarManagement
 {
-    internal class ToyotaCarRegistrationNumberGenerator : ICarRegistrationNumberGenerator
+    public class ToyotaCarPoolNumberGenerator : CarPoolNumberGeneratorBase
     {
-        public string GenerateNumber(string endCustomerRegistrationReference, string registrationRegistrationId)
+        protected override string GenerateRegistrationNumber(string endCustomerRegistrationReference, string registrationRegistrationId)
         {
             if (string.IsNullOrWhiteSpace(endCustomerRegistrationReference))
             {
