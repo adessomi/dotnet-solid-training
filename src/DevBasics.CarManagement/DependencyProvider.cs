@@ -26,6 +26,7 @@ namespace DevBasics.CarManagement
             serviceCollection.AddTransient<ICarRegistrationRepository, CarRegistrationRepository>();
             serviceCollection.AddSingleton<LanguageSettings>();
             serviceCollection.AddSingleton<HttpHeaderSettings>();
+            serviceCollection.AddTransient<IRequestContextInitializer, RequestContextInitializer>();
             serviceCollection.AddTransient<ICarManagementService, CarManagementService>();
 
             var serviceProvider = serviceCollection.BuildServiceProvider();
